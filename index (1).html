@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Phachonyut Team</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 600px;
+    margin: auto;
+    background: #f4f4f4;
+    padding: 20px;
+  }
+  h1, h2, h3 {
+    text-align: center;
+  }
+  .stats, .directions, .stopwatch, .reset, .summary, .history {
+    margin-top: 20px;
+    text-align: center;
+  }
+  button {
+    margin: 5px;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+  }
+  .correct {
+    background: #4CAF50;
+    color: white;
+  }
+  .incorrect {
+    background: #f44336;
+    color: white;
+  }
+  .reset button {
+    background: #888;
+    color: white;
+  }
+  .stopwatch button {
+    background: #2196F3;
+    color: white;
+  }
+  .summary ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 5px 0 15px 0;
+  }
+  table {
+    border-collapse: collapse;
+    margin: 10px auto;
+    width: 90%;
+    background: white;
+  }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 6px 10px;
+    text-align: center;
+  }
+  th {
+    background: #ddd;
+  }
+</style>
+</head>
+<body>
+
+<h1>P-TECH</h1>
+
+<div class="stats">
+  <p><strong>Total: <span id="total">0</span>/25</strong></p>
+  <p>
+    ✅ Left: <span id="correctLeft">0</span> |
+    Center: <span id="correctCenter">0</span> |
+    Right: <span id="correctRight">0</span>
+  </p>
+  <p>
+    ❌ Left: <span id="incorrectLeft">0</span> |
+    Center: <span id="incorrectCenter">0</span> |
+    Right: <span id="incorrectRight">0</span>
+  </p>
+  <p>
+    Correct Total: <span id="correct">0</span> |
+    Incorrect Total: <span id="incorrect">0</span>
+  </p>
+</div>
+
+<div class="directions">
+  <h3>✅ Correct</h3>
+  <button class="correct" onclick="addCorrect('Left')">Left</button>
+  <button class="correct" onclick="addCorrect('Center')">Center</button>
+  <button class="correct" onclick="addCorrect('Right')">Right</button>
+
+  <h3>❌ Incorrect</h3>
+  <button class="incorrect" onclick="addIncorrect('Left')">Left</button>
+  <button class="incorrect" onclick="addIncorrect('Center')">Center</button>
+  <button class="incorrect" onclick="addIncorrect('Right')">Right</button>
+</div>
+
+<div class="stopwatch">
+  <h2>Stopwatch: <span id="time">0.00</span> sec</h2>
+  <button onclick="startTimer()">Start</button>
+  <button onclick="stopTimer()">Stop</button>
+  <button onclick="resetTimer()">Reset</button>
+</div>
+
+<div class="reset">
+  <button onclick="resetAll()">Reset All</button>
+</div>
+
+<div class="summary">
+  <h3>📊 Summary</h3>
+
+  <p>✅ Most Correct Direction: <span id="mostCorrectDir">-</span></p>
+  <p>Correct Direction Percentages:</p>
+  <ul>
+    <li>Left: <span id="correctPctLeft">0</span>%</li>
+    <li>Center: <span id="correctPctCenter">0</span>%</li>
+    <li>Right: <span id="correctPctRight">0</span>%</li>
+  </ul>
+
+  <p>❌ Most Incorrect Direction: <span id="mostIncorrectDir">-</span></p>
+  <p>Incorrect Direction Percentages:</p>
+  <ul>
+    <li>Left: <span id="incorrectPctLeft">0</span>%</li>
+    <li>Center: <span id="incorrectPctCenter">0</span>%</li>
+    <li>Right: <span id="incorrectPctRight">0</span>%</li>
+  </ul>
+
+  <p>⏱ Most Frequent Correct Time: <span id="correctTimePeak">-</span></p>
+  <p>⏱ Most Frequent Incorrect Time: <span id="incorrectTimePeak">-</span></p>
+</div>
+
+<div class="history">
+  <h3>📋 All 25 Entries</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Status</th>
+        <th>Direction</th>
+        <th>Time (sec)</th>
+      </tr>
+    </thead>
+    <tbody id="historyBody">
+      <!-- entries go here -->
+    </tbody>
+  </table>
+</div>
+
+<script>
+  let correct = 0;
+  let incorrect = 0;
+  let correctLeft = 0, correctCenter = 0, correctRight = 0;
+  let incorrectLeft = 0, incorrectCenter = 0, incorrectRight = 0;
+  const max = 25;
+
+  // Store times for correct and incorrect, rounded to 2 decimals as strings
+  let correctTimes = {};
+  let incorrectTimes = {};
+
+  // Store full history as array of objects: {status: 'Correct'|'Incorrect', direction, time}
+  let history = [];
+
+  // Stopwatch vars
+  let startTime, interval;
+  let elapsed = 0;
+
+  function updateDisplay() {
+    document.getElementById('correct').textContent = correct;
+    document.getElementById('incorrect').textContent = incorrect;
+    document.getElementById('total').textContent = correct + incorrect;
+
+    document.getElementById('correctLeft').textContent = correctLeft;
+    document.getElementById('correctCenter').textContent = correctCenter;
+    document.getElementById('correctRight').textContent = correctRight;
+
+    document.getElementById('incorrectLeft').textContent = incorrectLeft;
+    document.getElementById('incorrectCenter').textContent = incorrectCenter;
+    document.getElementById('incorrectRight').textContent = incorrectRight;
+
+    updateSummary();
+    updateHistory();
+  }
+
+  function addCorrect(direction) {
+    if (correct + incorrect >= max) return;
+    correct++;
+    if (direction === 'Left') correctLeft++;
+    else if (direction === 'Center') correctCenter++;
+    else if (direction === 'Right') correctRight++;
+
+    const currentTime = parseFloat(document.getElementById('time').textContent);
+    const secStr = currentTime.toFixed(2);
+    correctTimes[secStr] = (correctTimes[secStr] || 0) + 1;
+
+    history.push({status: 'Correct', direction: direction, time: secStr});
+
+    updateDisplay();
+  }
+
+  function addIncorrect(direction) {
+    if (correct + incorrect >= max) return;
+    incorrect++;
+    if (direction === 'Left') incorrectLeft++;
+    else if (direction === 'Center') incorrectCenter++;
+    else if (direction === 'Right') incorrectRight++;
+
+    const currentTime = parseFloat(document.getElementById('time').textContent);
+    const secStr = currentTime.toFixed(2);
+    incorrectTimes[secStr] = (incorrectTimes[secStr] || 0) + 1;
+
+    history.push({status: 'Incorrect', direction: direction, time: secStr});
+
+    updateDisplay();
+  }
+
+  function updateSummary() {
+    const correctDir = {
+      Left: correctLeft,
+      Center: correctCenter,
+      Right: correctRight
+    };
+    const incorrectDir = {
+      Left: incorrectLeft,
+      Center: incorrectCenter,
+      Right: incorrectRight
+    };
+
+    const mostCorrect = getTop(correctDir);
+    const mostIncorrect = getTop(incorrectDir);
+
+    document.getElementById('mostCorrectDir').textContent = mostCorrect.name;
+    document.getElementById('mostIncorrectDir').textContent = mostIncorrect.name;
+
+    const totalCorrect = total(correctDir);
+    const totalIncorrect = total(incorrectDir);
+
+    document.getElementById('correctPctLeft').textContent = totalCorrect ? Math.round((correctLeft / totalCorrect) * 100) : 0;
+    document.getElementById('correctPctCenter').textContent = totalCorrect ? Math.round((correctCenter / totalCorrect) * 100) : 0;
+    document.getElementById('correctPctRight').textContent = totalCorrect ? Math.round((correctRight / totalCorrect) * 100) : 0;
+
+    document.getElementById('incorrectPctLeft').textContent = totalIncorrect ? Math.round((incorrectLeft / totalIncorrect) * 100) : 0;
+    document.getElementById('incorrectPctCenter').textContent = totalIncorrect ? Math.round((incorrectCenter / totalIncorrect) * 100) : 0;
+    document.getElementById('incorrectPctRight').textContent = totalIncorrect ? Math.round((incorrectRight / totalIncorrect) * 100) : 0;
+
+    const correctPeak = getTopTime(correctTimes);
+    const incorrectPeak = getTopTime(incorrectTimes);
+
+    document.getElementById('correctTimePeak').textContent =
+      correctPeak.name === '-' ? '-' : `${correctPeak.name} sec (${correctPeak.count} times)`;
+    document.getElementById('incorrectTimePeak').textContent =
+      incorrectPeak.name === '-' ? '-' : `${incorrectPeak.name} sec (${incorrectPeak.count} times)`;
+  }
+
+  function updateHistory() {
+    const tbody = document.getElementById('historyBody');
+    tbody.innerHTML = '';
+    history.forEach((entry, idx) => {
+      const tr = document.createElement('tr');
+      const numTd = document.createElement('td');
+      numTd.textContent = idx + 1;
+      const statusTd = document.createElement('td');
+      statusTd.textContent = entry.status;
+      statusTd.style.color = entry.status === 'Correct' ? '#4CAF50' : '#f44336';
+      const dirTd = document.createElement('td');
+      dirTd.textContent = entry.direction;
+      const timeTd = document.createElement('td');
+      timeTd.textContent = entry.time;
+      tr.appendChild(numTd);
+      tr.appendChild(statusTd);
+      tr.appendChild(dirTd);
+      tr.appendChild(timeTd);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function getTop(obj) {
+    let max = -1, name = '-';
+    for (const key in obj) {
+      if (obj[key] > max) {
+        max = obj[key];
+        name = key;
+      }
+    }
+    return { name, count: max };
+  }
+
+  function total(obj) {
+    return Object.values(obj).reduce((a, b) => a + b, 0);
+  }
+
+  function getTopTime(timeObj) {
+    let max = 0, name = '-';
+    for (const time in timeObj) {
+      if (timeObj[time] > max) {
+        max = timeObj[time];
+        name = time;
+      }
+    }
+    return { name, count: max };
+  }
+
+  function resetAll() {
+    correct = incorrect = 0;
+    correctLeft = correctCenter = correctRight = 0;
+    incorrectLeft = incorrectCenter = incorrectRight = 0;
+    correctTimes = {};
+    incorrectTimes = {};
+    history = [];
+    updateDisplay();
+    resetTimer();
+  }
+
+  // Stopwatch functions
+  function startTimer() {
+    if (interval) return;
+    startTime = Date.now() - elapsed;
+    interval = setInterval(updateTimer, 50);
+  }
+
+  function stopTimer() {
+    if (!interval) return;
+    clearInterval(interval);
+    interval = null;
+    elapsed = Date.now() - startTime;
+  }
+
+  function resetTimer() {
+    clearInterval(interval);
+    interval = null;
+    elapsed = 0;
+    document.getElementById('time').textContent = "0.00";
+  }
+
+  function updateTimer() {
+    const time = Date.now() - startTime;
+    const seconds = (time / 1000).toFixed(2);
+    document.getElementById('time').textContent = seconds;
+  }
+
+  updateDisplay(); // Initialize
+</script>
+
+</body>
+</html>
